@@ -30,7 +30,7 @@ const initScene = () => {
 
   // Textures
   textureLoader = new THREE.TextureLoader();
-  textureLoader.load("/textures/emptyRoom.jpg", (texture) => {
+  textureLoader.load("./textures/emptyRoom.jpg", (texture) => {
     scene.background = texture;
   });
 
