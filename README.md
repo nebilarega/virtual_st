@@ -1,1 +1,4 @@
-# virtual_st
+# homekynd
+
+- click and drag
+- double click to stop dragging
