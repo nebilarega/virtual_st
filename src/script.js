@@ -1,6 +1,9 @@
+// use-strict
 import "./style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
 import * as dat from "lil-gui";
 
 /**
@@ -11,17 +14,84 @@ let scene,
   canvas,
   camera,
   textureLoader,
+  gltfLoader,
+  fbxLoader,
   renderer,
   raycaster,
   pointer,
   mouseMove,
-  gui;
-
+  gui,
+  cameraHelper;
+let draggedObject = null;
 const sizes = {
   width: window.innerWidth,
   height: window.innerHeight,
 };
 
+const guiAdd = (object, folderName) => {
+  // gui.distroy();
+  // gui = new dat.GUI();
+  const scaleParams = {
+    scale: 0.001,
+  };
+  const setScale = (value) => {
+    object.scale.set(value, value, value);
+  };
+  const folder = gui.addFolder(folderName);
+  const postion = folder.addFolder("Position");
+  const roatation = folder.addFolder("Rotation");
+  const scale = folder.addFolder("Scale");
+  postion
+    .add(object.position, "y")
+    .min(-10)
+    .max(10)
+    .step(0.0001)
+    .name("Position Y");
+  roatation
+    .add(object.rotation, "z")
+    .min(-Math.PI)
+    .max(Math.PI)
+    .step(0.0001)
+    .name(`Rotation Y`);
+  roatation
+    .add(object.rotation, "y")
+    .min(-Math.PI)
+    .max(Math.PI)
+    .step(0.0001)
+    .name(`Roatation Z`);
+  roatation
+    .add(object.rotation, "x")
+    .min(-Math.PI)
+    .max(Math.PI)
+    .step(0.0001)
+    .name(`Rotation X`);
+  scale
+    .add(object.scale, "x")
+    .min(0.0001)
+    .max(0.01)
+    .step(0.00001)
+    .name(`Scale X`);
+  scale
+    .add(object.scale, "y")
+    .min(0.0001)
+    .max(0.01)
+    .step(0.00001)
+    .name(`Scale Z`);
+  scale
+    .add(object.scale, "z")
+    .min(0.0001)
+    .max(0.01)
+    .step(0.00001)
+    .name(`Scale Y`);
+  scale
+    .add(scaleParams, "scale")
+    .min(0.0001)
+    .max(0.01)
+    .step(0.00001)
+    .name("Scale Whole")
+    .onChange(setScale);
+  folder.close();
+};
 const initScene = () => {
   scene = new THREE.Scene();
   pointer = new THREE.Vector2();
@@ -33,25 +103,22 @@ const initScene = () => {
   textureLoader.load("./textures/emptyRoom.jpg", (texture) => {
     scene.background = texture;
   });
+  fbxLoader = new FBXLoader();
 
   // Canvas
   canvas = document.querySelector("canvas.webgl");
   camera = new THREE.PerspectiveCamera(
-    120,
+    45,
     sizes.width / sizes.height,
     0.1,
     100
   );
   camera.position.x = 0;
-  camera.position.y = 0;
+  camera.position.y = 1;
   camera.position.z = 3;
   scene.add(camera);
-  gui
-    .add(camera.rotation, "y")
-    .min(-Math.PI / 2)
-    .max(Math.PI / 2)
-    .step(0.0001)
-    .name("Camera rotation");
+  cameraHelper = new THREE.CameraHelper(camera);
+  // scene.add(cameraHelper);
 
   renderer = new THREE.WebGLRenderer({
     canvas: canvas,
@@ -83,11 +150,46 @@ const initMaterials = () => {
   );
   scene.add(box);
 };
-const render = () => {};
+const initModels = () => {
+  fbxLoader.load(
+    "./models/Table.fbx",
+    (tableGroup) => {
+      if (scene) {
+        const table = tableGroup.children[0];
+        table.scale.set(0.001, 0.001, 0.001);
+        table.position.set(0, 0, 0);
 
-/**
- * Sizes
- */
+        table.castShadow = true;
+        table.receiveShadow = true;
+        table.userData.draggble = true;
+        table.userData.name = "TABLE";
+        scene.add(table);
+        guiAdd(table, "table");
+      }
+    },
+    (xhr) => {
+      console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
+    },
+    (error) => {
+      console.log(error);
+    }
+  );
+  fbxLoader.load("./models/Sofa.fbx", (sofaGroup) => {
+    if (scene) {
+      const sofa = sofaGroup.children[0];
+      sofa.scale.set(0.001, 0.001, 0.001);
+      sofa.position.set(0, 0, 0);
+
+      sofa.castShadow = true;
+      sofa.receiveShadow = true;
+      sofa.userData.draggble = true;
+      sofa.userData.name = "sofa";
+      scene.add(sofa);
+      guiAdd(sofa, "sofa");
+    }
+  });
+};
+const render = () => {};
 
 window.addEventListener("resize", () => {
   // Update sizes
@@ -102,8 +204,6 @@ window.addEventListener("resize", () => {
   renderer.setSize(sizes.width, sizes.height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
-
-let draggedObject = null;
 
 window.addEventListener("pointerdown", (event) => {
   pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -127,7 +227,9 @@ function dragObjectFunction() {
     const found = raycaster.intersectObjects(scene.children, true);
     if (found.length > 0) {
       for (let o of found) {
+        // draggedObject.position.x = o.point.x;
         draggedObject.position.x = o.point.x;
+        draggedObject.position.z = o.point.z;
       }
     }
   }
@@ -136,6 +238,8 @@ function dragObjectFunction() {
 
 const animate = () => {
   dragObjectFunction();
+  camera.updateProjectionMatrix();
+  cameraHelper.update();
   renderer.render(scene, camera);
   window.requestAnimationFrame(animate);
 };
@@ -143,7 +247,8 @@ const animate = () => {
 const start = () => {
   initScene();
   initLight();
-  initMaterials();
+  // initMaterials();
+  initModels();
   animate();
 };
 
