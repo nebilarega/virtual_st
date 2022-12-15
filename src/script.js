@@ -225,12 +225,15 @@ function dragObjectFunction() {
   if (draggedObject != null) {
     raycaster.setFromCamera(mouseMove, camera);
     const found = raycaster.intersectObjects(scene.children, true);
+
     if (found.length > 0) {
-      for (let o of found) {
-        // draggedObject.position.x = o.point.x;
-        draggedObject.position.x = o.point.x;
-        draggedObject.position.z = o.point.z;
-      }
+      draggedObject.position.x = found[0].point.x;
+      draggedObject.position.z = found[0].point.z;
+      // for (let o of found) {
+      //   // draggedObject.position.x = o.point.x;
+      //   draggedObject.position.x = o.point.x;
+      //   draggedObject.position.z = o.point.z;
+      // }
     }
   }
   renderer.render(scene, camera);
